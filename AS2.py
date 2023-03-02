@@ -11,7 +11,7 @@ plt.show()
 print(np.mean(sv), np.std(sv))
 
 # b
-y = sv.values
+y = sv['GBPUSD'].values
 mu = np.mean(y)
 x = np.log((y-mu)**2)
 
@@ -143,8 +143,7 @@ def KF_LL_ML(data, params):
     return LogL
 
 # Initial values
-y_lag = sv.shift(1).dropna().values
-phi_ini = np.cov(y[1:], y_lag)
+phi_ini = np.cov(y[1:], y[:-1])[0][1]
 omega_ini = (1 - phi_ini) * (np.mean(y) + 1.27)
 sig_eta = (1 - phi_ini**2) * (np.var(y) - (np.pi**2)/2)
 
