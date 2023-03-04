@@ -92,7 +92,7 @@ plt.show()
 
 #MAXIMUM LIKELIHOOD FUNCTIONS
 def KF_LL_ML(data, params):
-    phi, sig_eta, omega = params
+    sig_eta, phi, omega = params
     a_ini = 0
     P_ini = 10**7
     H = (np.pi**2)/2
@@ -112,7 +112,7 @@ def KF_LL_ML(data, params):
     K[0] = P[0] / F[0]
 
 
-    for t in range(0, len(data)):
+    for t in range(1, len(data)):
         # Prediction error
         v[t] = data[t] - a[t] +1.27
 
@@ -122,9 +122,9 @@ def KF_LL_ML(data, params):
         # Kalman gain
         K[t] = phi * P[t] / F[t]
 
-        # # Filtering step
-        # a[t] = a[t] + (v[t]/F[t]) * P[t] 
-        # P[t] = P[t] - P[t]**2 / F[t]
+        # Filtering step
+        a[t] = a[t] + (v[t]/F[t]) * P[t] 
+        P[t] = P[t] - P[t]**2 / F[t]
 
         # Prediction step
         a[t+1] = phi * a[t] + K[t] * v[t] + omega
@@ -137,7 +137,6 @@ def KF_LL_ML(data, params):
     F = F[1:]
     K = K[1:]
     n = len(v)
-
     LogL = - (n/2) * np.log(2 * np.pi) - 1/2 * np.sum(np.log(F) + F**(-1) * v**2)
     
     return LogL
@@ -148,7 +147,7 @@ phi_ini = 0.9731 #np.cov(y[1:], y[:-1])[0][1]/(np.var(y[1:])- np.pi**2/2)
 def wrapper(phi):
     omega = (1 - phi) * (np.mean(x) + 1.27)
     sig_eta = (1 - phi**2) * (np.var(x) - (np.pi**2)/2)
-    params = [phi, sig_eta, omega]
+    params = [sig_eta, phi, omega]
     return  -KF_LL_ML(x, params)
 
 bounds = [(0, 1)]
