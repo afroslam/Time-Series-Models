@@ -86,11 +86,12 @@ plt.show()
 
 a_ini = 0
 P_ini = 10**7
-sig_e = 15099
-sig_eta = 1469.1
+#sig_e = 15099
+#sig_eta = 1469.1
 
 #MAXIMUM LIKELIHOOD FUNCTIONS
 def KF_LL_ML(data, params):
+    print(params)
     sig_eta, phi, omega = params
     a_ini = 0
     P_ini = 10**7
@@ -106,12 +107,12 @@ def KF_LL_ML(data, params):
     P[0] = P_ini
 
     F = np.zeros(len(data))
-    F[0] = P[0] + sig_e
+    F[0] = P[0] + sig_eta
     K = np.zeros(len(data))
     K[0] = P[0] / F[0]
 
 
-    for t in range(1, len(data)):
+    for t in range(0, len(data)):
         # Prediction error
         v[t] = data[t] - a[t]
 
@@ -121,9 +122,9 @@ def KF_LL_ML(data, params):
         # Kalman gain
         K[t] = phi * P[t] / F[t]
 
-        # Filtering step
-        a[t] = a[t] + (v[t]/F[t]) * P[t] 
-        P[t] = P[t] - P[t]**2 / F[t]
+        # # Filtering step
+        # a[t] = a[t] + (v[t]/F[t]) * P[t] 
+        # P[t] = P[t] - P[t]**2 / F[t]
 
         # Prediction step
         a[t+1] = phi * a[t] + K[t] * v[t] + omega
@@ -134,6 +135,12 @@ def KF_LL_ML(data, params):
     v = v[1:]
     F = F[1:]
     n = len(v)
+
+    # print(a)
+    # print(P)
+    # print(F)
+    # print(v)
+    #print(f'mean: {np.mean(v)}')
 
     LogL = - (n/2) * np.log(2 * np.pi) - 1/2 * np.sum(np.log(F) + F**(-1) * v**2)
     
@@ -146,6 +153,7 @@ sig_eta = (1 - phi_ini**2) * (np.var(y) - (np.pi**2)/2)
 
 params = [phi_ini, omega_ini, sig_eta]
 LogL = KF_LL_ML(y, params)
+print(LogL)
 
 def wrapper(phi):
     omega = (1 - phi) * (np.mean(y) + 1.27)
@@ -153,6 +161,5 @@ def wrapper(phi):
     params = [phi, omega, sig_eta]
     return  KF_LL_ML(y, params)
 
-opt = minimize(wrapper, method='nelder-mead', x0 = phi_ini, bounds = ((0,1)))
-
+opt = minimize(wrapper, method='nelder-mead', x0 = phi_ini, bounds = [(0,1)])
 
