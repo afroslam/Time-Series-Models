@@ -12,7 +12,7 @@ print(np.mean(sv), np.std(sv))
 
 # b
 y = sv['GBPUSD'].values
-y = y/100
+y = y
 mu = np.mean(y)
 x = np.log((y-mu)**2)
 
