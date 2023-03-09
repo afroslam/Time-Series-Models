@@ -50,10 +50,7 @@ def KF_LL(data, params, ml_flag):
         v[t] = data[t] - a[t] + 1.27
 
         # Pred. err. variance
-        if t == 0:
-            F[t] = P[t] + sig_eta
-        else:
-            F[t] = P[t] + H
+        F[t] = P[t] + H
 
         # Kalman gain
         K[t] = phi * P[t] / F[t]
