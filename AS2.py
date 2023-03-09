@@ -28,36 +28,42 @@ x = np.log((y-mu)**2)
 # Q_t = sig_eta^2
 
 #KALMAN FILTER FUNCTION
-def KF_LL(data, params, ml_flag):
+def KF_LL(y, params, ml_flag):
     phi, sig_eta, omega = params
 
-    a_ini = 0
-    P_ini = 10**7
+    Z = 1
+    d = -1.27
+    T = phi
+    Q = sig_eta
+    R = 1
+    
+    a_ini = omega/(1-phi)
+    P_ini = sig_eta/(1-phi**2)
     H = (np.pi**2)/2
-
-    a =  np.zeros(len(data)+1)
+    c = omega
+    a =  np.zeros(len(y)+1)
     a[0] = a_ini
-    P = np.zeros(len(data)+1)
+    P = np.zeros(len(y)+1)
     P[0] = P_ini
 
-    v = np.zeros(len(data))
-    F = np.zeros(len(data))
-    K = np.zeros(len(data))
+    v = np.zeros(len(y))
+    F = np.zeros(len(y))
+    K = np.zeros(len(y))
 
 
-    for t in range(0, len(data)):
+    for t in range(0, len(y)):
         # Prediction error
-        v[t] = data[t] - a[t] + 1.27
+        v[t] = y[t] - Z * a[t] - d
 
         # Pred. err. variance
-        F[t] = P[t] + H
+        F[t] = Z*P[t]*Z + H
 
         # Kalman gain
-        K[t] = phi * P[t] / F[t]
+        K[t] = T * P[t] * Z / F[t]
 
         # Prediction step
-        a[t+1] = phi * a[t] + K[t] * v[t] + omega
-        P[t+1] = phi * P[t] * phi + sig_eta - K[t]**2 * F[t]
+        a[t+1] = T * a[t] + K[t] * v[t] + c
+        P[t+1] = T * P[t] * T + R*Q*R - K[t] * F[t] * K[t]
     
     a = a[1:]
     P = P[1:]    
@@ -75,7 +81,7 @@ def KF_LL(data, params, ml_flag):
 
 # Initial values
 phi_ini = 0.9731 #np.cov(y[1:], y[:-1])[0][1]/(np.var(y[1:])- np.pi**2/2)
-omega_ini =  (1 - phi_ini) * (np.mean(x) + 1.27)
+omega_ini =  (1 - phi_ini) * (np.mean(x) + 1.27) 
 sig_eta_ini = (1 - phi_ini**2) * (np.var(x) - (np.pi**2)/2)
 
 def wrapper(phi):
@@ -84,17 +90,16 @@ def wrapper(phi):
     params = [phi, sig_eta, omega]
     return  -KF_LL(x, params, 1)
 
-bounds = [(0, 1)]
-opt = minimize(wrapper, method='Nelder-Mead', x0 = phi_ini, bounds = bounds)
-
-# bounds = [(0,1), (0, None), (None, None)]
-# opt = minimize(lambda y: -KF_LL(x,y, 1), method='Nelder-Mead', bounds = bounds, x0 = [phi_ini, sig_eta_ini, omega_ini], options= {'maxiter': 1e600, 'maxfev': 100000})#KALMAN SMOOTHER FUNCTION
+bounds = [(0,1), (0, None), (None, None)]
+opt = minimize(lambda y: -KF_LL(x,y, 1), method='Nelder-Mead', bounds = bounds, x0 = [phi_ini, sig_eta_ini, omega_ini], options= {'maxiter': 1e600, 'maxfev': 100000})#KALMAN SMOOTHER FUNCTION
 
 ## d
 
 phi = opt.x[0]
-omega = (1 - phi) * (np.mean(x) + 1.27)
-sig_eta = (1 - phi**2) * (np.var(x) - (np.pi**2)/2)
+omega = opt.x[2]
+sig_eta = opt.x[1]
+# omega = (1 - phi) * (np.mean(x) + 1.27)
+# sig_eta = (1 - phi**2) * (np.var(x) - (np.pi**2)/2)
 ml_params = [phi, sig_eta, omega]
 print(f'phi: {phi}\nomega: {omega}\nsig_eta: {sig_eta}')
 
