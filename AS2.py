@@ -91,7 +91,7 @@ def wrapper(phi):
     return  -KF_LL(x, params, 1)
 
 bounds = [(0,1), (0, None), (None, None)]
-opt = minimize(lambda y: -KF_LL(x,y, 1), method='Nelder-Mead', bounds = bounds, x0 = [phi_ini, sig_eta_ini, omega_ini], options= {'maxiter': 1e600, 'maxfev': 100000})#KALMAN SMOOTHER FUNCTION
+opt = minimize(lambda params: -KF_LL(x,params, 1), method='Nelder-Mead', bounds = bounds, x0 = [phi_ini, sig_eta_ini, omega_ini], options= {'maxiter': 1e10, 'maxfev': 100000})#KALMAN SMOOTHER FUNCTION
 
 ## d
 
@@ -135,4 +135,63 @@ r, N, a_hat, V = KS_LL(x, v, P, F, a, K, phi)
 plt.plot(x, color = 'grey')
 plt.plot(a, color='red')
 plt.plot(a_hat, color = 'blue')
+plt.show()
+
+## e
+
+print('\n')
+
+realized_volatility = pd.read_csv('realized_volatility.csv')
+realized_volatility = realized_volatility[realized_volatility['Symbol'] == '.SPX']
+realized_volatility = realized_volatility[-1512:]
+
+y = np.array(np.log(realized_volatility['close_price']/realized_volatility['close_price'].shift(1)).dropna()) * 100
+mu = np.mean(y)
+x = np.log((y-mu)**2)
+
+# Initial values
+phi_ini = 0.99 #np.cov(y[1:], y[:-1])[0][1]/(np.var(y[1:])- np.pi**2/2)
+omega_ini =  (1 - phi_ini) * (np.mean(x) + 1.27) 
+sig_eta_ini = (1 - phi_ini**2) * (np.var(x) - (np.pi**2)/2)
+
+bounds = [(0,1), (0, None), (None, None)]
+opt = minimize(lambda params: -KF_LL(x,params, 1), method='Nelder-Mead', bounds = bounds, x0 = [phi_ini, sig_eta_ini, omega_ini], options= {'maxiter': 1e10, 'maxfev': 100000})#KALMAN SMOOTHER FUNCTION
+
+phi = opt.x[0]
+omega = opt.x[2]
+sig_eta = opt.x[1]
+
+ml_params = [phi, sig_eta, omega]
+print(f'phi: {phi}\nomega: {omega}\nsig_eta: {sig_eta}')
+
+a,P,v,F,K,n = KF_LL(x, ml_params, 0)
+plt.plot(x, 'o', color = 'grey')
+plt.plot(a, color='red')
+plt.show()
+
+r, N, a_hat, V = KS_LL(x, v, P, F, a, K, phi)
+plt.plot(x, 'o', color = 'grey')
+plt.plot(a, color='red')
+plt.plot(a_hat, color = 'blue')
+plt.show()
+
+x = np.array(np.log(realized_volatility['rv5'])) - 1.27
+
+bounds = [(0,1), (0, None), (None, None)]
+phi_ini = 0.95 #np.cov(y[1:], y[:-1])[0][1]/(np.var(y[1:])- np.pi**2/2)
+omega_ini =  (1 - phi_ini) * (np.mean(x) + 1.27) 
+sig_eta_ini = (1 - phi_ini**2) * (np.var(x) - (np.pi**2)/2)
+
+opt = minimize(lambda params: -KF_LL(x,params, 1), method='Nelder-Mead', bounds = bounds, x0 = [phi_ini, sig_eta_ini, omega_ini], options= {'maxiter': 1e10, 'maxfev': 100000})#KALMAN SMOOTHER FUNCTION
+
+phi = opt.x[0]
+omega = opt.x[2]
+sig_eta = opt.x[1]
+
+ml_params = [phi, sig_eta, omega]
+print(f'phi: {phi}\nomega: {omega}\nsig_eta: {sig_eta}')
+
+a,P,v,F,K,n = KF_LL(x, ml_params, 0)
+plt.plot(x, 'o', color = 'grey')
+plt.plot(a, color='red')
 plt.show()
