@@ -11,17 +11,17 @@ plt.show()
 
 
 # B #################################################################################################################
-y = sv['GBPUSD'].values/100
-mu = np.mean(y)
-x = np.log((y-mu)**2)
+y_b = sv['GBPUSD'].values/100
+mu_b = np.mean(y_b)
+x_b = np.log((y_b-mu_b)**2)
 
-plt.plot(x, color = 'grey')
+plt.plot(x_b, color = 'grey')
 plt.show()
 
 
 # C #################################################################################################################
 #KALMAN FILTER FUNCTION
-def KF_LL(y, params, ml_flag):
+def KF_LL(y, params, ml_flag, plot=False):
     '''
     variables
         Z_t = 1
@@ -79,6 +79,12 @@ def KF_LL(y, params, ml_flag):
     K = K[1:]
     n = len(v)
 
+    if plot:
+        plt.plot(y, 'o', color = 'grey', label = 'Data')
+        plt.plot(a, color='red', label = 'Kalman filter')
+        plt.legend()
+        plt.show()
+
     LogL = - (n/2) * np.log(2 * np.pi) - 1/2 * np.sum(np.log(F) + F**(-1) * v**2)
 
     if ml_flag==1:
@@ -86,147 +92,139 @@ def KF_LL(y, params, ml_flag):
     else:
         return a,P,v,F,K,n
 
+#QML Function
+def getQMLparams(x, phi_ini, bounds = [(0,1), (0, None), (None, None)]):
+    #Initialize omega and sig2_eta using phi_ini
+    omega_ini =  (1 - phi_ini) * (np.mean(x) + 1.27) 
+    sig2_eta_ini = (1 - phi_ini**2) * (np.var(x) - (np.pi**2)/2)
 
-# Initial values
-phi_ini = 0.9731 
-omega_ini =  (1 - phi_ini) * (np.mean(x) + 1.27) 
-sig2_eta_ini = (1 - phi_ini**2) * (np.var(x) - (np.pi**2)/2)
+    #QML Optimization
+    opt = minimize(lambda params: -KF_LL(x, params, 1), 
+                    method='Nelder-Mead', 
+                    bounds = bounds, 
+                    x0 = [phi_ini, sig2_eta_ini, omega_ini], 
+                    options= {'maxiter': 1e10, 'maxfev': 100000})
 
-#QML Optimization
-bounds = [(0,1), (0, None), (None, None)]
-opt = minimize(lambda params: -KF_LL(x,params, 1), method='Nelder-Mead', bounds = bounds, 
-               x0 = [phi_ini, sig2_eta_ini, omega_ini], options= {'maxiter': 1e10, 'maxfev': 100000})
+    #Obtain parameters
+    phi = opt.x[0]
+    sig2_eta = opt.x[1]
+    omega = opt.x[2]
+    psi_hat = omega/(1-phi)
+    ml_params = [phi, sig2_eta, omega]
+    print(f'phi: {phi}\nomega: {omega}\nsig2_eta: {sig2_eta}')
 
-phi = opt.x[0]
-sig2_eta = opt.x[1]
-omega = opt.x[2]
-psi_hat = omega/(1-phi)
-ml_params = [phi, sig2_eta, omega]
-print(f'phi: {phi}\nomega: {omega}\nsig2_eta: {sig2_eta}')
+    return ml_params, psi_hat
+
+phi_ini_c = 0.9731
+ml_params_c, psi_hat_c = getQMLparams(x_b, phi_ini_c)
 
 
 # D #################################################################################################################
 #Running KF with the QML obtained parameters and plotting h_t
-a,P,v,F,K,n = KF_LL(x, ml_params, 0)
-plt.plot(x, 'o',  markersize = 3, color = 'grey')
-plt.plot(a, color='red')
+a_d, P_d, v_d, F_d, K_d, n_d = KF_LL(x_b, ml_params_c, 0)
+plt.plot(x_b, 'o',  markersize = 3, color = 'grey', label = r'$x_t$')
+plt.plot(a_d, color='red', label = r'$h_t$')
+plt.legend()
 plt.show()
 
 #KALMAN SMOOTHER FUNCTION
-def KS_LL(data, v, P, F, a, K, phi):
-    r =  np.zeros(len(data))
+def KS_LL(y, v, P, F, a, K, phi, plot):
+    r =  np.zeros(len(y))
     r[-1] = 0
 
-    N = np.zeros(len(data))
+    N = np.zeros(len(y))
     N[-1] = 0
     
-    a_hat = np.zeros(len(data))
+    a_hat = np.zeros(len(y))
 
-    V = np.zeros(len(data))
+    V = np.zeros(len(y))
     L = phi - K 
-    for t in range(len(data)-2, -1, -1):
+    for t in range(len(y)-2, -1, -1):
         r[t] = F[t]**-1*v[t] + L[t] * r[t+1] 
         N[t] = F[t]**-1 + L[t]**2*N[t+1]
 
-    for t in range(0, len(data)):
+    for t in range(0, len(y)):
         a_hat[t] = a[t] + P[t] *r[t]
         V[t] = P[t] - P[t]**2*N[t]
 
 
+    if plot:
+        plt.plot(a, color='red', label = 'Kalman filter')
+        plt.plot(a_hat, color = 'blue', label = 'Kalman smoother')
+        plt.legend()
+        plt.show()
+
     return (r, N, a_hat, V)
 
 #Running KS with QML obtained parameters
-r, N, a_hat, V = KS_LL(x, v, P, F, a, K, phi)
+r_d, N_d, a_hat_d, V_d = KS_LL(x_b, v_d, P_d, F_d, a_d, K_d, ml_params_c[0], False)
+
 
 #Plotting filtered and smoothed h_tilde
-kf_h_tilde = a-psi_hat
-ks_h_tilde = a_hat-psi_hat
+kf_h_tilde_d = a_d-psi_hat_c
+ks_h_tilde_d = a_hat_d-psi_hat_c
 
-plt.plot(kf_h_tilde, color='red')
-plt.plot(ks_h_tilde, color = 'blue')
+plt.plot(kf_h_tilde_d, color='red', label = r'$E[\tilde{h}_t|Y_t]$')
+plt.plot(ks_h_tilde_d, color = 'blue', label = r'$E[\tilde{h}_t|Y_n]$')
+plt.legend()
 plt.show()
 
 
 # E #################################################################################################################
-realized_volatility = pd.read_csv('realized_volatility.csv')
-realized_volatility = realized_volatility[realized_volatility['Symbol'] == '.SPX']
-#realized_volatility = realized_volatility[-1512:]
+df = pd.read_csv('realized_volatility.csv')
+df = df[df['Symbol'] == '.SPX']
+rv_df = df[-2000:]
 
-y = np.array(np.log(realized_volatility['close_price']/realized_volatility['close_price'].shift(1)).dropna())
-mu = np.mean(y)
-x = np.log((y-mu)**2)
+y_e = np.array(np.log(rv_df['close_price']/rv_df['close_price'].shift(1)).dropna())
+mu_e = np.mean(y_e)
+x_e = np.log((y_e-mu_e)**2)
 
-plt.plot(y)
+plt.plot(y_e, color = 'grey')
 plt.show()
 
-# Initial values
-phi_ini = 0.99 #np.cov(y[1:], y[:-1])[0][1]/(np.var(y[1:])- np.pi**2/2)
-omega_ini =  (1 - phi_ini) * (np.mean(x) + 1.27) 
-sig2_eta_ini = (1 - phi_ini**2) * (np.var(x) - (np.pi**2)/2)
+#QML estimation
+phi_ini_e = 0.99
+ml_params_e, psi_hat_e = getQMLparams(x_e, phi_ini_e)
 
-bounds = [(0,1), (0, None), (None, None)]
-opt = minimize(lambda params: -KF_LL(x,params, 1), method='Nelder-Mead', bounds = bounds, x0 = [phi_ini, sig2_eta_ini, omega_ini], options= {'maxiter': 1e10, 'maxfev': 100000})#KALMAN SMOOTHER FUNCTION
+#Running KF using QML params
+a_e, P_e, v_e, F_e, K_e, n_e = KF_LL(x_e, ml_params_e, 0, plot=True)
 
-phi = opt.x[0]
-omega = opt.x[2]
-sig2_eta = opt.x[1]
+#Running KS using QML params
+r_e, N_e, a_hat_e, V_e = KS_LL(x_e, v_e, P_e, F_e, a_e, K_e, ml_params_e[0], plot=True)
 
-ml_params = [phi, sig2_eta, omega]
-print(f'phi: {phi}\nomega: {omega}\nsig2_eta: {sig2_eta}')
 
-a,P,v,F,K,n = KF_LL(x, ml_params, 0)
-plt.plot(x, 'o', color = 'grey')
-plt.plot(a, color='red')
-plt.show()
+#Obtaining log realized volatility values and subtracting 1.27
+x_rv = np.array(np.log(rv_df['rv5'][1:])) - 1.27
 
-r, N, a_hat, V = KS_LL(x, v, P, F, a, K, phi)
-plt.plot(x, 'o', color = 'grey')
-plt.plot(a, color='red')
-plt.plot(a_hat, color = 'blue')
-plt.show()
+#Running KF for realized vol returns
+a_star, P_star, x_star, F_star, K_star, n_star = KF_LL(x_rv, ml_params_e, 0)
 
-x_rv = np.array(np.log(realized_volatility['rv5'][1:])) - 1.27
+#Obtaining beta using GLS
+var_beta_hat = np.sum(x_star**2 * F_star**(-1))**(-1)
+beta_hat = var_beta_hat * np.sum(x_star * F_star**(-1) * v_e)
+print('Beta: ', beta_hat)
 
-a,P,x_star,F,K,n = KF_LL(x_rv, ml_params, 0, -1.27)
-plt.plot(x_rv, 'o', color = 'grey')
-plt.plot(a, color = 'red')
-plt.show()
 
-## GLS
-var_beta_hat = np.sum(x_star**2 * F**(-1))**(-1)
-beta_hat = var_beta_hat * np.sum(x_star * F**(-1) * v)
-
-print(beta_hat)
-
-## Filtering
-y = np.array(np.log(realized_volatility['close_price']/realized_volatility['close_price'].shift(1)).dropna()) 
+#Filtering realized volatility; obtain returns and transform
+y = np.array(np.log(rv_df['close_price']/rv_df['close_price'].shift(1)).dropna()) 
 mu = np.mean(y)
 x = np.log((y-mu)**2)
 x_demeaned = x - beta_hat * (x_rv + 1.27)
 
-# Initial values
-phi_ini = 0.99 #np.cov(y[1:], y[:-1])[0][1]/(np.var(y[1:])- np.pi**2/2)
-omega_ini =  (1 - phi_ini) * (np.mean(x_demeaned) + 1.27) 
-sig2_eta_ini = (1 - phi_ini**2) * (np.var(x_demeaned) - (np.pi**2)/2)
 
-bounds = [(0,1), (0, None), (None, None)]
-opt = minimize(lambda params: -KF_LL(x_demeaned,params, 1), method='Nelder-Mead', bounds = bounds, x0 = [phi_ini, sig2_eta_ini, omega_ini], options= {'maxiter': 1e10, 'maxfev': 100000})#KALMAN SMOOTHER FUNCTION
+#QML estimation
+phi_ini_rv = 0.99
+ml_params_rv, psi_hat_rv = getQMLparams(x_demeaned, phi_ini_rv)
 
-phi = opt.x[0]
-omega = opt.x[2]
-sig2_eta = opt.x[1]
+#Obtaining and plotting KF and KS
+a_rv, P_rv, v_rv, F_rv, K_rv, n_rv = KF_LL(x_demeaned, ml_params_rv, 0, plot=True)
+r_rv, N_rv, a_hat_rv, V_rv = KS_LL(x_demeaned, v_rv, P_rv, F_rv, a_rv, 
+                                   K_rv, ml_params_rv[0], plot=True)
 
-ml_params = [phi, sig2_eta, omega]
-print(f'phi: {phi}\nomega: {omega}\nsig2_eta: {sig2_eta}')
-a,P,v,F,K,n = KF_LL(x_demeaned, ml_params, 0)
-plt.plot(x_demeaned, 'o', color = 'grey')
-plt.plot(a, color = 'red')
-plt.show()
 
-r, N, a_hat, V = KS_LL(x_demeaned, v, P, F, a, K, phi)
-#plt.plot(x_demeaned, 'o', color = 'grey')
-plt.plot(a, color='red')
-plt.plot(a_hat, color = 'blue')
-plt.show()
+# F #################################################################################################################
 
-################################## f ##################################################################################################################
+
+
+
+
