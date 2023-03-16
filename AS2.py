@@ -6,16 +6,18 @@ from scipy.optimize import minimize
 sv = pd.read_excel('sv.xlsx', sheet_name= 'Sheet1')
 
 # a
-# plt.plot(sv)
-# plt.show()
+plt.plot(sv)
+plt.show()
 
 # b
 y = sv['GBPUSD'].values
 mu = np.mean(y)
 x = np.log((y-mu)**2)
 
-# plt.plot(x)
-# plt.show()
+plt.plot(x)
+plt.show()
+
+#variables
 # Z_t = 1
 # d_t = 0
 # e_t = u_t
@@ -28,11 +30,10 @@ x = np.log((y-mu)**2)
 # Q_t = sig_eta^2
 
 #KALMAN FILTER FUNCTION
-def KF_LL(y, params, ml_flag):
+def KF_LL(y, params, ml_flag, d=-1.27):
     phi, sig_eta, omega = params
 
     Z = 1
-    d = -1.27
     T = phi
     Q = sig_eta
     R = 1
@@ -105,7 +106,7 @@ print(f'phi: {phi}\nomega: {omega}\nsig_eta: {sig_eta}')
 
 
 a,P,v,F,K,n = KF_LL(x, ml_params, 0)
-plt.plot(x, 'o', color = 'grey')
+plt.plot(x, 'o',  color = 'grey')
 plt.plot(a, color='red')
 plt.show()
 
@@ -149,6 +150,9 @@ y = np.array(np.log(realized_volatility['close_price']/realized_volatility['clos
 mu = np.mean(y)
 x = np.log((y-mu)**2)
 
+plt.plot(y)
+plt.show()
+
 # Initial values
 phi_ini = 0.99 #np.cov(y[1:], y[:-1])[0][1]/(np.var(y[1:])- np.pi**2/2)
 omega_ini =  (1 - phi_ini) * (np.mean(x) + 1.27) 
@@ -175,81 +179,44 @@ plt.plot(a, color='red')
 plt.plot(a_hat, color = 'blue')
 plt.show()
 
-x = np.array(np.log(realized_volatility['rv5'])) - 1.27
+x_rv = np.array(np.log(realized_volatility['rv5'])) - 1.27
 
-bounds = [(0,1), (0, None), (None, None)]
-phi_ini = 0.971#np.cov(x[1:], x[:-1])[0][1]/(np.var(x[1:])- np.pi**2/2)
-omega_ini =  (1 - phi_ini) * (np.mean(x) + 1.27) 
-sig_eta_ini = (1 - phi_ini**2) * (np.var(x) - (np.pi**2)/2)
+# bounds = [(0,1), (0, None), (None, None)]
+# phi_ini = 0.971#np.cov(x[1:], x[:-1])[0][1]/(np.var(x[1:])- np.pi**2/2)
+# omega_ini =  (1 - phi_ini) * (np.mean(x) + 1.27) 
+# sig_eta_ini = (1 - phi_ini**2) * (np.var(x) - (np.pi**2)/2)
 
-opt = minimize(lambda params: -KF_LL(x,params, 1), method='Nelder-Mead', bounds = bounds, x0 = [phi_ini, sig_eta_ini, omega_ini], options= {'maxiter': 1e10, 'maxfev': 100000})#KALMAN SMOOTHER FUNCTION
+# opt = minimize(lambda params: -KF_LL(x,params, 1), method='Nelder-Mead', bounds = bounds, x0 = [phi_ini, sig_eta_ini, omega_ini], options= {'maxiter': 1e10, 'maxfev': 100000})#KALMAN SMOOTHER FUNCTION
 
-phi = opt.x[0]
-omega = opt.x[2]
-sig_eta = opt.x[1]
+# phi = opt.x[0]
+# omega = opt.x[2]
+# sig_eta = opt.x[1]
 
-ml_params = [phi, sig_eta, omega]
-print(f'phi: {phi}\nomega: {omega}\nsig_eta: {sig_eta}')
+# ml_params = [phi, sig_eta, omega]
+# print(f'phi: {phi}\nomega: {omega}\nsig_eta: {sig_eta}')
 
-a,P,v,F,K,n = KF_LL(x, ml_params, 0)
-plt.plot(x, 'o', color = 'grey')
+a,P,v,F,K,n = KF_LL(x_rv, ml_params, 0, -1.27)
+plt.plot(x_rv, 'o', color = 'grey')
 plt.plot(a, color = 'red')
 plt.show()
 
-x_star = x[1:] - a[1:]
+x_star = x_rv[1:] - a[1:]
 
 ## GLS
-var_beta_hat = np.sum(np.multiply(x_star**2,F**(-1)))**(-1)
-beta_hat = var_beta_hat * np.sum(np.multiply(np.multiply(x_star,F**(-1)), v))
+var_beta_hat = np.sum(x_star**2 * F**(-1))**(-1)
+beta_hat = var_beta_hat * np.sum(x_star * F**(-1) * v)
 
-#KALMAN FILTER FUNCTION
-def KF_LL(y, params, ml_flag):
-    phi, sig_eta, omega = params
+print(beta_hat)
 
-    Z = 1
-    d = -1.27
-    T = phi
-    Q = sig_eta
-    R = 1
-    
-    a_ini = omega/(1-phi)
-    P_ini = sig_eta/(1-phi**2)
-    H = (np.pi**2)/2
-    c = omega
-    a =  np.zeros(len(y)+1)
-    a[0] = a_ini
-    P = np.zeros(len(y)+1)
-    P[0] = P_ini
+## Filtering
+y = np.array(np.log(realized_volatility['close_price']/realized_volatility['close_price'].shift(1)).dropna()) * 100
+mu = np.mean(y)
+x = np.log((y-mu)**2)
+x_demeaned = x - beta_hat * x_rv[1:]
 
-    v = np.zeros(len(y))
-    F = np.zeros(len(y))
-    K = np.zeros(len(y))
+a,P,v,F,K,n = KF_LL(x_demeaned, ml_params, 0, -1.27)
+plt.plot(x_demeaned, 'o', color = 'grey')
+plt.plot(a, color = 'red')
+plt.show()
 
 
-    for t in range(0, len(y)):
-        # Prediction error
-        v[t] = y[t] - Z * a[t] - d
-
-        # Pred. err. variance
-        F[t] = Z*P[t]*Z + H
-
-        # Kalman gain
-        K[t] = T * P[t] * Z / F[t]
-
-        # Prediction step
-        a[t+1] = T * a[t] + K[t] * v[t] + c
-        P[t+1] = T * P[t] * T + R*Q*R - K[t] * F[t] * K[t]
-    
-    a = a[1:]
-    P = P[1:]    
-    v = v[1:]
-    F = F[1:]
-    K = K[1:]
-    n = len(v)
-
-    LogL = - (n/2) * np.log(2 * np.pi) - 1/2 * np.sum(np.log(F) + F**(-1) * v**2)
-
-    if ml_flag==1:
-        return LogL
-    else:
-        return a,P,v,F,K,n
