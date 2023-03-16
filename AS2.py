@@ -5,41 +5,47 @@ from scipy.optimize import minimize
 
 sv = pd.read_excel('sv.xlsx', sheet_name= 'Sheet1')
 
-# a #################################################################################################################
-plt.plot(sv)
+# A #################################################################################################################
+plt.plot(sv, color = 'grey')
 plt.show()
 
-# b #################################################################################################################
+
+# B #################################################################################################################
 y = sv['GBPUSD'].values/100
 mu = np.mean(y)
 x = np.log((y-mu)**2)
 
-plt.plot(x)
+plt.plot(x, color = 'grey')
 plt.show()
 
-#variables
-# Z_t = 1
-# d_t = 0
-# e_t = u_t
-# a_t = h_t
-# T_t = phi
-# c_t = omega (constant)
-# R_t = 1
 
-# H_t = Var[log e^2]
-# Q_t = sig_eta^2
-
+# C #################################################################################################################
 #KALMAN FILTER FUNCTION
-def KF_LL(y, params, ml_flag, d=-1.27):
-    phi, sig_eta, omega = params
+def KF_LL(y, params, ml_flag):
+    '''
+    variables
+        Z_t = 1
+        d_t = 0
+        e_t = u_t
+        a_t = h_t
+        T_t = phi
+        c_t = omega (constant)
+        R_t = 1
+
+        H_t = Var[log e^2]
+        Q_t = sig2_eta
+    '''
+
+    phi, sig2_eta, omega = params
 
     Z = 1
     T = phi
-    Q = sig_eta
+    Q = sig2_eta
     R = 1
-    
+    d=-1.27
+
     a_ini = omega/(1-phi)
-    P_ini = sig_eta/(1-phi**2)
+    P_ini = sig2_eta/(1-phi**2)
     H = (np.pi**2)/2
     c = omega
     a =  np.zeros(len(y)+1)
@@ -80,36 +86,33 @@ def KF_LL(y, params, ml_flag, d=-1.27):
     else:
         return a,P,v,F,K,n
 
+
 # Initial values
-phi_ini = 0.9731 #np.cov(y[1:], y[:-1])[0][1]/(np.var(y[1:])- np.pi**2/2)
+phi_ini = 0.9731 
 omega_ini =  (1 - phi_ini) * (np.mean(x) + 1.27) 
-sig_eta_ini = (1 - phi_ini**2) * (np.var(x) - (np.pi**2)/2)
+sig2_eta_ini = (1 - phi_ini**2) * (np.var(x) - (np.pi**2)/2)
 
-def wrapper(phi):
-    omega = (1 - phi) * (np.mean(x) + 1.27)
-    sig_eta = (1 - phi**2) * (np.var(x) - (np.pi**2)/2)
-    params = [phi, sig_eta, omega]
-    return  -KF_LL(x, params, 1)
-
+#QML Optimization
 bounds = [(0,1), (0, None), (None, None)]
-opt = minimize(lambda params: -KF_LL(x,params, 1), method='Nelder-Mead', bounds = bounds, x0 = [phi_ini, sig_eta_ini, omega_ini], options= {'maxiter': 1e10, 'maxfev': 100000})#KALMAN SMOOTHER FUNCTION
-
-############### d ###################################################################################################################################################################################
+opt = minimize(lambda params: -KF_LL(x,params, 1), method='Nelder-Mead', bounds = bounds, 
+               x0 = [phi_ini, sig2_eta_ini, omega_ini], options= {'maxiter': 1e10, 'maxfev': 100000})
 
 phi = opt.x[0]
+sig2_eta = opt.x[1]
 omega = opt.x[2]
-sig_eta = opt.x[1]
-# omega = (1 - phi) * (np.mean(x) + 1.27)
-# sig_eta = (1 - phi**2) * (np.var(x) - (np.pi**2)/2)
-ml_params = [phi, sig_eta, omega]
-print(f'phi: {phi}\nomega: {omega}\nsig_eta: {sig_eta}')
+psi_hat = omega/(1-phi)
+ml_params = [phi, sig2_eta, omega]
+print(f'phi: {phi}\nomega: {omega}\nsig2_eta: {sig2_eta}')
 
 
+# D #################################################################################################################
+#Running KF with the QML obtained parameters and plotting h_t
 a,P,v,F,K,n = KF_LL(x, ml_params, 0)
-plt.plot(x, 'o',  color = 'grey')
+plt.plot(x, 'o',  markersize = 3, color = 'grey')
 plt.plot(a, color='red')
 plt.show()
 
+#KALMAN SMOOTHER FUNCTION
 def KS_LL(data, v, P, F, a, K, phi):
     r =  np.zeros(len(data))
     r[-1] = 0
@@ -132,16 +135,19 @@ def KS_LL(data, v, P, F, a, K, phi):
 
     return (r, N, a_hat, V)
 
+#Running KS with QML obtained parameters
 r, N, a_hat, V = KS_LL(x, v, P, F, a, K, phi)
-plt.plot(x, color = 'grey')
-plt.plot(a, color='red')
-plt.plot(a_hat, color = 'blue')
+
+#Plotting filtered and smoothed h_tilde
+kf_h_tilde = a-psi_hat
+ks_h_tilde = a_hat-psi_hat
+
+plt.plot(kf_h_tilde, color='red')
+plt.plot(ks_h_tilde, color = 'blue')
 plt.show()
 
-########################################################## e ###################################################
 
-print('\n')
-
+# E #################################################################################################################
 realized_volatility = pd.read_csv('realized_volatility.csv')
 realized_volatility = realized_volatility[realized_volatility['Symbol'] == '.SPX']
 #realized_volatility = realized_volatility[-1512:]
@@ -156,17 +162,17 @@ plt.show()
 # Initial values
 phi_ini = 0.99 #np.cov(y[1:], y[:-1])[0][1]/(np.var(y[1:])- np.pi**2/2)
 omega_ini =  (1 - phi_ini) * (np.mean(x) + 1.27) 
-sig_eta_ini = (1 - phi_ini**2) * (np.var(x) - (np.pi**2)/2)
+sig2_eta_ini = (1 - phi_ini**2) * (np.var(x) - (np.pi**2)/2)
 
 bounds = [(0,1), (0, None), (None, None)]
-opt = minimize(lambda params: -KF_LL(x,params, 1), method='Nelder-Mead', bounds = bounds, x0 = [phi_ini, sig_eta_ini, omega_ini], options= {'maxiter': 1e10, 'maxfev': 100000})#KALMAN SMOOTHER FUNCTION
+opt = minimize(lambda params: -KF_LL(x,params, 1), method='Nelder-Mead', bounds = bounds, x0 = [phi_ini, sig2_eta_ini, omega_ini], options= {'maxiter': 1e10, 'maxfev': 100000})#KALMAN SMOOTHER FUNCTION
 
 phi = opt.x[0]
 omega = opt.x[2]
-sig_eta = opt.x[1]
+sig2_eta = opt.x[1]
 
-ml_params = [phi, sig_eta, omega]
-print(f'phi: {phi}\nomega: {omega}\nsig_eta: {sig_eta}')
+ml_params = [phi, sig2_eta, omega]
+print(f'phi: {phi}\nomega: {omega}\nsig2_eta: {sig2_eta}')
 
 a,P,v,F,K,n = KF_LL(x, ml_params, 0)
 plt.plot(x, 'o', color = 'grey')
@@ -201,17 +207,17 @@ x_demeaned = x - beta_hat * (x_rv + 1.27)
 # Initial values
 phi_ini = 0.99 #np.cov(y[1:], y[:-1])[0][1]/(np.var(y[1:])- np.pi**2/2)
 omega_ini =  (1 - phi_ini) * (np.mean(x_demeaned) + 1.27) 
-sig_eta_ini = (1 - phi_ini**2) * (np.var(x_demeaned) - (np.pi**2)/2)
+sig2_eta_ini = (1 - phi_ini**2) * (np.var(x_demeaned) - (np.pi**2)/2)
 
 bounds = [(0,1), (0, None), (None, None)]
-opt = minimize(lambda params: -KF_LL(x_demeaned,params, 1), method='Nelder-Mead', bounds = bounds, x0 = [phi_ini, sig_eta_ini, omega_ini], options= {'maxiter': 1e10, 'maxfev': 100000})#KALMAN SMOOTHER FUNCTION
+opt = minimize(lambda params: -KF_LL(x_demeaned,params, 1), method='Nelder-Mead', bounds = bounds, x0 = [phi_ini, sig2_eta_ini, omega_ini], options= {'maxiter': 1e10, 'maxfev': 100000})#KALMAN SMOOTHER FUNCTION
 
 phi = opt.x[0]
 omega = opt.x[2]
-sig_eta = opt.x[1]
+sig2_eta = opt.x[1]
 
-ml_params = [phi, sig_eta, omega]
-print(f'phi: {phi}\nomega: {omega}\nsig_eta: {sig_eta}')
+ml_params = [phi, sig2_eta, omega]
+print(f'phi: {phi}\nomega: {omega}\nsig2_eta: {sig2_eta}')
 a,P,v,F,K,n = KF_LL(x_demeaned, ml_params, 0)
 plt.plot(x_demeaned, 'o', color = 'grey')
 plt.plot(a, color = 'red')
