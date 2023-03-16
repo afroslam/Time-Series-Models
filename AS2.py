@@ -5,12 +5,12 @@ from scipy.optimize import minimize
 
 sv = pd.read_excel('sv.xlsx', sheet_name= 'Sheet1')
 
-# a
+# a #################################################################################################################
 plt.plot(sv)
 plt.show()
 
-# b
-y = sv['GBPUSD'].values
+# b #################################################################################################################
+y = sv['GBPUSD'].values/100
 mu = np.mean(y)
 x = np.log((y-mu)**2)
 
@@ -94,7 +94,7 @@ def wrapper(phi):
 bounds = [(0,1), (0, None), (None, None)]
 opt = minimize(lambda params: -KF_LL(x,params, 1), method='Nelder-Mead', bounds = bounds, x0 = [phi_ini, sig_eta_ini, omega_ini], options= {'maxiter': 1e10, 'maxfev': 100000})#KALMAN SMOOTHER FUNCTION
 
-## d
+############### d ###################################################################################################################################################################################
 
 phi = opt.x[0]
 omega = opt.x[2]
@@ -138,15 +138,15 @@ plt.plot(a, color='red')
 plt.plot(a_hat, color = 'blue')
 plt.show()
 
-## e
+########################################################## e ###################################################
 
 print('\n')
 
 realized_volatility = pd.read_csv('realized_volatility.csv')
 realized_volatility = realized_volatility[realized_volatility['Symbol'] == '.SPX']
-realized_volatility = realized_volatility[-1512:]
+#realized_volatility = realized_volatility[-1512:]
 
-y = np.array(np.log(realized_volatility['close_price']/realized_volatility['close_price'].shift(1)).dropna()) * 100
+y = np.array(np.log(realized_volatility['close_price']/realized_volatility['close_price'].shift(1)).dropna())
 mu = np.mean(y)
 x = np.log((y-mu)**2)
 
@@ -179,28 +179,12 @@ plt.plot(a, color='red')
 plt.plot(a_hat, color = 'blue')
 plt.show()
 
-x_rv = np.array(np.log(realized_volatility['rv5'])) - 1.27
+x_rv = np.array(np.log(realized_volatility['rv5'][1:])) - 1.27
 
-# bounds = [(0,1), (0, None), (None, None)]
-# phi_ini = 0.971#np.cov(x[1:], x[:-1])[0][1]/(np.var(x[1:])- np.pi**2/2)
-# omega_ini =  (1 - phi_ini) * (np.mean(x) + 1.27) 
-# sig_eta_ini = (1 - phi_ini**2) * (np.var(x) - (np.pi**2)/2)
-
-# opt = minimize(lambda params: -KF_LL(x,params, 1), method='Nelder-Mead', bounds = bounds, x0 = [phi_ini, sig_eta_ini, omega_ini], options= {'maxiter': 1e10, 'maxfev': 100000})#KALMAN SMOOTHER FUNCTION
-
-# phi = opt.x[0]
-# omega = opt.x[2]
-# sig_eta = opt.x[1]
-
-# ml_params = [phi, sig_eta, omega]
-# print(f'phi: {phi}\nomega: {omega}\nsig_eta: {sig_eta}')
-
-a,P,v,F,K,n = KF_LL(x_rv, ml_params, 0, -1.27)
+a,P,x_star,F,K,n = KF_LL(x_rv, ml_params, 0, -1.27)
 plt.plot(x_rv, 'o', color = 'grey')
 plt.plot(a, color = 'red')
 plt.show()
-
-x_star = x_rv[1:] - a[1:]
 
 ## GLS
 var_beta_hat = np.sum(x_star**2 * F**(-1))**(-1)
@@ -209,14 +193,34 @@ beta_hat = var_beta_hat * np.sum(x_star * F**(-1) * v)
 print(beta_hat)
 
 ## Filtering
-y = np.array(np.log(realized_volatility['close_price']/realized_volatility['close_price'].shift(1)).dropna()) * 100
+y = np.array(np.log(realized_volatility['close_price']/realized_volatility['close_price'].shift(1)).dropna()) 
 mu = np.mean(y)
 x = np.log((y-mu)**2)
-x_demeaned = x - beta_hat * x_rv[1:]
+x_demeaned = x - beta_hat * (x_rv + 1.27)
 
-a,P,v,F,K,n = KF_LL(x_demeaned, ml_params, 0, -1.27)
+# Initial values
+phi_ini = 0.99 #np.cov(y[1:], y[:-1])[0][1]/(np.var(y[1:])- np.pi**2/2)
+omega_ini =  (1 - phi_ini) * (np.mean(x_demeaned) + 1.27) 
+sig_eta_ini = (1 - phi_ini**2) * (np.var(x_demeaned) - (np.pi**2)/2)
+
+bounds = [(0,1), (0, None), (None, None)]
+opt = minimize(lambda params: -KF_LL(x_demeaned,params, 1), method='Nelder-Mead', bounds = bounds, x0 = [phi_ini, sig_eta_ini, omega_ini], options= {'maxiter': 1e10, 'maxfev': 100000})#KALMAN SMOOTHER FUNCTION
+
+phi = opt.x[0]
+omega = opt.x[2]
+sig_eta = opt.x[1]
+
+ml_params = [phi, sig_eta, omega]
+print(f'phi: {phi}\nomega: {omega}\nsig_eta: {sig_eta}')
+a,P,v,F,K,n = KF_LL(x_demeaned, ml_params, 0)
 plt.plot(x_demeaned, 'o', color = 'grey')
 plt.plot(a, color = 'red')
 plt.show()
 
+r, N, a_hat, V = KS_LL(x_demeaned, v, P, F, a, K, phi)
+#plt.plot(x_demeaned, 'o', color = 'grey')
+plt.plot(a, color='red')
+plt.plot(a_hat, color = 'blue')
+plt.show()
 
+################################## f ##################################################################################################################
