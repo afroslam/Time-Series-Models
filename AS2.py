@@ -255,7 +255,7 @@ psi = omega/(1-phi)
 M = 10000
 h_c = bootstrap_filter_method(y_b, M, sig2_eta, phi, psi)#, a_ini, P_ini)
 
-plt.plot(h_c, color = 'red', label = r"$\tilde{h}_t$")
+plt.plot(h_c, color = 'red', label = r"QML $E[\tilde{h}_t|Y_t]$")
 plt.plot(a_d-psi, color = 'blue', label = r'Bootstrapped $E[\tilde{h}_t|Y_t]$')
 plt.legend()
 plt.show()
@@ -267,7 +267,7 @@ psi = omega/(1-phi)
 M = 10000
 h_e = bootstrap_filter_method(y_e, M, sig2_eta, phi, psi)#, a_ini, P_ini)
 
-plt.plot(h_e, color = 'red', label = r"$\tilde{h}_t$")
+plt.plot(h_e, color = 'red', label = r"QML $E[\tilde{h}_t|Y_t]$")
 plt.plot(a_e-psi, color = 'blue', label = r'Bootstrapped $E[\tilde{h}_t|Y_t]$')
 plt.legend()
 plt.show()
