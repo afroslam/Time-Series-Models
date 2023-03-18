@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.stats as st
 from scipy.optimize import minimize
 
 sv = pd.read_excel('sv.xlsx', sheet_name= 'Sheet1')
@@ -228,3 +229,57 @@ r_rv, N_rv, a_hat_rv, V_rv = KS_LL(x_demeaned, v_rv, P_rv, F_rv, a_rv,
 
 
 
+################################## f ##################################################################################################################
+def bootstrap_filter_method(y, M, sig2_eta, phi, psi):#, a_ini, P_ini): 
+    """
+    Function to do bootstrap filtering
+    Parameters:
+    y - Observations
+    M - Number of Particles
+    sig2_eta - Variance
+    phi - Coefficient in state updating equation
+    psi - Parameter in exponential
+    """
+    T = len(y)
+    h_vector = np.zeros(T)
+    h_mean = 0 # Initial values #np.dot(phi, np.random.normal(a_ini, np.sqrt(P_ini), size = M))
+    for i in range(0, T):
+        a_tilde = np.random.normal(loc = h_mean, scale = np.sqrt(sig2_eta), size = M) # Density of state updating equation
+        sig_t =np.exp((psi + a_tilde)/2) ## Standard deviation of y
+        weights = st.norm.pdf(y[i], loc = np.zeros(M), scale = sig_t) #p(y_t|a_t)
+        weights /= sum(weights) ## Normalize weights
+        h_vector[i]= np.sum(weights*a_tilde) ## Compute state
+        a = np.random.choice(a_tilde, size = M, p = weights, replace = True) ## Sample using weights
+        h_mean = phi*a
+    return h_vector
+
+
+phi = ml_params[0]
+sig2_eta = ml_params[1]
+omega = ml_params[2]
+psi = omega/(1-phi)
+#a_ini = omega/(1-phi)
+#P_ini = sig2_eta/(1-phi**2)
+y = sv['GBPUSD'].values/100
+y = y - np.mean(y)
+M = 10000
+h = bootstrap_filter_method(y, M, sig2_eta, phi, psi)#, a_ini, P_ini)
+
+plt.plot(h)
+plt.plot(a - psi) ### Vergeet niet naam aan te passen
+plt.show()
+
+phi = ml_params[0]
+sig2_eta = ml_params[1]
+omega = ml_params[2]
+psi = omega/(1-phi)
+#a_ini = omega/(1-phi)
+#P_ini = sig2_eta/(1-phi**2)
+y = np.array(np.log(realized_volatility['close_price']/realized_volatility['close_price'].shift(1)).dropna())
+#y = y - np.mean(y)
+M = 10000
+h = bootstrap_filter_method(y, M, sig2_eta, phi, psi)#, a_ini, P_ini)
+
+plt.plot(h, color = 'green')
+plt.plot(a-psi, color = 'blue')
+plt.show()
