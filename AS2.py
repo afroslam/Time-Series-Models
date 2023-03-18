@@ -224,12 +224,6 @@ r_rv, N_rv, a_hat_rv, V_rv = KS_LL(x_demeaned, v_rv, P_rv, F_rv, a_rv,
 
 
 # F #################################################################################################################
-
-
-
-
-
-################################## f ##################################################################################################################
 def bootstrap_filter_method(y, M, sig2_eta, phi, psi):#, a_ini, P_ini): 
     """
     Function to do bootstrap filtering
@@ -254,32 +248,26 @@ def bootstrap_filter_method(y, M, sig2_eta, phi, psi):#, a_ini, P_ini):
     return h_vector
 
 
-phi = ml_params[0]
-sig2_eta = ml_params[1]
-omega = ml_params[2]
+phi = ml_params_c[0]
+sig2_eta = ml_params_c[1]
+omega = ml_params_c[2]
 psi = omega/(1-phi)
-#a_ini = omega/(1-phi)
-#P_ini = sig2_eta/(1-phi**2)
-y = sv['GBPUSD'].values/100
-y = y - np.mean(y)
 M = 10000
-h = bootstrap_filter_method(y, M, sig2_eta, phi, psi)#, a_ini, P_ini)
+h_c = bootstrap_filter_method(y_b, M, sig2_eta, phi, psi)#, a_ini, P_ini)
 
-plt.plot(h)
-plt.plot(a - psi) ### Vergeet niet naam aan te passen
+plt.plot(h_c, color = 'red', label = r"$\tilde{h}_t$")
+plt.plot(a_d-psi, color = 'blue', label = r'Bootstrapped $E[\tilde{h}_t|Y_t]$')
+plt.legend()
 plt.show()
 
-phi = ml_params[0]
-sig2_eta = ml_params[1]
-omega = ml_params[2]
+phi = ml_params_e[0]
+sig2_eta = ml_params_e[1]
+omega = ml_params_e[2]
 psi = omega/(1-phi)
-#a_ini = omega/(1-phi)
-#P_ini = sig2_eta/(1-phi**2)
-y = np.array(np.log(realized_volatility['close_price']/realized_volatility['close_price'].shift(1)).dropna())
-#y = y - np.mean(y)
 M = 10000
-h = bootstrap_filter_method(y, M, sig2_eta, phi, psi)#, a_ini, P_ini)
+h_e = bootstrap_filter_method(y_e, M, sig2_eta, phi, psi)#, a_ini, P_ini)
 
-plt.plot(h, color = 'green')
-plt.plot(a-psi, color = 'blue')
+plt.plot(h_e, color = 'red', label = r"$\tilde{h}_t$")
+plt.plot(a_e-psi, color = 'blue', label = r'Bootstrapped $E[\tilde{h}_t|Y_t]$')
+plt.legend()
 plt.show()
