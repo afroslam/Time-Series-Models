@@ -30,7 +30,7 @@ plt.show()
 
 # C #################################################################################################################
 #KALMAN FILTER FUNCTION
-def KF_LL(y, params, ml_flag, saveFig=''):
+def KF_LL(y, params, ml_flag):
     '''
     variables
         Z_t = 1
@@ -87,13 +87,6 @@ def KF_LL(y, params, ml_flag, saveFig=''):
     F = F[1:]
     K = K[1:]
     n = len(v)
-
-    # if len(saveFig)>0:
-    #     plt.plot(y-d, 'o', markersize = 3, color = 'grey', label = r'Transformed $x_t$')
-    #     plt.plot(a, color='red', label = 'Kalman filter')
-    #     plt.legend()
-    #     plt.savefig(saveFig)
-    #     plt.show()
 
     LogL = - (n/2) * np.log(2 * np.pi) - 1/2 * np.sum(np.log(F) + F**(-1) * v**2)
 
@@ -156,8 +149,7 @@ def KS_LL(y, v, P, F, a, K, phi, saveFig=''):
 
     if len(saveFig)>0:
         plt.plot(y-d, 'o', markersize = 3, color = 'grey', label = r'Transformed $x_t$')
-        #plt.plot(a, color='red', label = 'Kalman filter')
-        plt.plot(a_hat, color = 'blue', label = 'Kalman smoother')
+        plt.plot(a_hat, color = 'red', label = 'Kalman smoother')
         plt.legend()
         plt.savefig(saveFig)
         plt.show()
@@ -165,15 +157,16 @@ def KS_LL(y, v, P, F, a, K, phi, saveFig=''):
     return (r, N, a_hat, V)
 
 #Running KS with QML obtained parameters
-r_d, N_d, a_hat_d, V_d = KS_LL(x_b, v_d, P_d, F_d, a_d, K_d, ml_params_c[0], saveFig= 'tsm_ass2_d1')
+r_d, N_d, a_hat_d, V_d = KS_LL(x_b, v_d, P_d, F_d, a_d, K_d, ml_params_c[0], 
+                               saveFig= 'tsm_ass2_d1')
 
 
 #Plotting filtered and smoothed h_tilde
 kf_h_tilde_d = a_d-psi_hat_c
 ks_h_tilde_d = a_hat_d-psi_hat_c
 
-plt.plot(kf_h_tilde_d, color='red', label = r'$E[\tilde{h}_t|x_1,...,x_t]$')
-plt.plot(ks_h_tilde_d, color = 'blue', label = r'$E[\tilde{h}_t|x_1,...,x_n]$')
+plt.plot(kf_h_tilde_d, color='blue', label = r'$E[\tilde{h}_t|x_1,...,x_t]$')
+plt.plot(ks_h_tilde_d, color = 'red', label = r'$E[\tilde{h}_t|x_1,...,x_n]$')
 plt.legend()
 plt.savefig('tsm_ass2_d2')
 plt.show()
@@ -211,15 +204,16 @@ ml_params_e, psi_hat_e = getQMLparams(x_e, phi_ini_e)
 a_e, P_e, v_e, F_e, K_e, n_e = KF_LL(x_e, ml_params_e, 0)
 
 #Running KS using QML params
-r_e, N_e, a_hat_e, V_e = KS_LL(x_e, v_e, P_e, F_e, a_e, K_e, ml_params_e[0], saveFig = 'tsm_ass2_e3')
+r_e, N_e, a_hat_e, V_e = KS_LL(x_e, v_e, P_e, F_e, a_e, K_e, ml_params_e[0], 
+                               saveFig = 'tsm_ass2_e3')
 
 
 #Plotting filtered and smoothed h_tilde
 kf_h_tilde_e = a_e-psi_hat_e
 ks_h_tilde_e = a_hat_e-psi_hat_e
 
-plt.plot(kf_h_tilde_e, color='red', label = r'$E[\tilde{h}_t|x_1,...,x_t]$')
-plt.plot(ks_h_tilde_e, color = 'blue', label = r'$E[\tilde{h}_t|x_1,...,x_n]$')
+plt.plot(kf_h_tilde_e, color='blue', label = r'$E[\tilde{h}_t|x_1,...,x_t]$')
+plt.plot(ks_h_tilde_e, color = 'red', label = r'$E[\tilde{h}_t|x_1,...,x_n]$')
 plt.legend()
 plt.savefig('tsm_ass2_e4')
 plt.show()
@@ -256,8 +250,8 @@ r_rv, N_rv, a_hat_rv, V_rv = KS_LL(x_demeaned, v_rv, P_rv, F_rv, a_rv,
 kf_h_tilde_rv = a_rv-psi_hat_rv
 ks_h_tilde_rv = a_hat_rv-psi_hat_rv
 
-plt.plot(kf_h_tilde_rv, color='red', label = r'$E[\tilde{h}_t|x_1,...,x_t]$')
-plt.plot(ks_h_tilde_rv, color = 'blue', label = r'$E[\tilde{h}_t|x_1,...,x_n]$')
+plt.plot(kf_h_tilde_rv, color='blue', label = r'$E[\tilde{h}_t|x_1,...,x_t]$')
+plt.plot(ks_h_tilde_rv, color = 'red', label = r'$E[\tilde{h}_t|x_1,...,x_n]$')
 plt.legend()
 plt.savefig('tsm_ass2_e6')
 plt.show()
@@ -294,8 +288,8 @@ psi = omega/(1-phi)
 M = 10000
 h_c = bootstrap_filter_method(y_a, M, sig2_eta, phi, psi)#, a_ini, P_ini)
 
-plt.plot(h_c, color = 'red', label = r"QML $E[\tilde{h}_t|x_1,...,x_t]$")
-plt.plot(a_d-psi, color = 'blue', label = r'Bootstrapped $E[\tilde{h}_t|x_1,...,x_t]$')
+plt.plot(h_c, color = 'blue', label = r"QML $E[\tilde{h}_t|x_1,...,x_t]$")
+plt.plot(a_d-psi, color = 'red', label = r'Bootstrapped $E[\tilde{h}_t|x_1,...,x_t]$')
 plt.legend()
 plt.savefig('tsm_ass2_f1')
 plt.show()
@@ -307,8 +301,8 @@ psi = omega/(1-phi)
 M = 10000
 h_e = bootstrap_filter_method(y_e, M, sig2_eta, phi, psi)#, a_ini, P_ini)
 
-plt.plot(h_e, color = 'red', label = r"QML $E[\tilde{h}_t|x_1,...,x_t]$")
-plt.plot(a_e-psi, color = 'blue', label = r'Bootstrapped $E[\tilde{h}_t|x_1,...,x_t]$')
+plt.plot(h_e, color = 'blue', label = r"QML $E[\tilde{h}_t|x_1,...,x_t]$")
+plt.plot(a_e-psi, color = 'red', label = r'Bootstrapped $E[\tilde{h}_t|x_1,...,x_t]$')
 plt.legend()
 plt.savefig('tsm_ass2_f2')
 plt.show()
