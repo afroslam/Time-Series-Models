@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats as st
 from scipy.optimize import minimize
+from scipy.stats import skew, kurtosis
 
 sv = pd.read_excel('sv.xlsx', sheet_name= 'Sheet1')
 
@@ -13,7 +14,10 @@ plt.ylabel('log returns')
 plt.savefig('tsm_ass2_a')
 plt.show()
 
+sample_stats_a = pd.DataFrame({'Moment': ['Mean', 'Variance', 'Skewness', 'Kurtosis'], 
+                  'Value': [np.mean(y_a), np.var(y_a), skew(y_a), kurtosis(y_a)]})
 
+print(sample_stats_a)
 # B #################################################################################################################
 mu_b = np.mean(y_a)
 x_b = np.log((y_a-mu_b)**2)
@@ -192,6 +196,11 @@ plt.plot(y_e, color = 'grey')
 plt.ylabel('log returns')
 plt.savefig('tsm_ass2_e1')
 plt.show()
+
+sample_stats_e = pd.DataFrame({'Moment': ['Mean', 'Variance', 'Skewness', 'Kurtosis'], 
+                  'Value': [np.mean(y_e), np.var(y_e), skew(y_e), kurtosis(y_e)]})
+
+print(sample_stats_e)
 
 plt.plot(x_e, color = 'grey')
 plt.ylabel(r'$x_t$')
