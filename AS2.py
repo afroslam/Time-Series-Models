@@ -7,22 +7,26 @@ from scipy.optimize import minimize
 sv = pd.read_excel('sv.xlsx', sheet_name= 'Sheet1')
 
 # A #################################################################################################################
-plt.plot(sv, color = 'grey')
+y_a = sv['GBPUSD'].values/100
+plt.plot(y_a, color = 'grey')
+plt.ylabel('log returns')
+plt.savefig('tsm_ass2_a')
 plt.show()
 
 
 # B #################################################################################################################
-y_b = sv['GBPUSD'].values/100
-mu_b = np.mean(y_b)
-x_b = np.log((y_b-mu_b)**2)
+mu_b = np.mean(y_a)
+x_b = np.log((y_a-mu_b)**2)
 
 plt.plot(x_b, color = 'grey')
+plt.ylabel(r'$x_t$')
+plt.savefig('tsm_ass2_b')
 plt.show()
 
 
 # C #################################################################################################################
 #KALMAN FILTER FUNCTION
-def KF_LL(y, params, ml_flag, plot=False):
+def KF_LL(y, params, ml_flag, saveFig=''):
     '''
     variables
         Z_t = 1
@@ -80,10 +84,11 @@ def KF_LL(y, params, ml_flag, plot=False):
     K = K[1:]
     n = len(v)
 
-    if plot:
-        plt.plot(y, 'o', color = 'grey', label = 'Data')
+    if len(saveFig)>0:
+        plt.plot(y, 'o', color = 'grey', label = r'$x_t$')
         plt.plot(a, color='red', label = 'Kalman filter')
         plt.legend()
+        plt.savefig(saveFig)
         plt.show()
 
     LogL = - (n/2) * np.log(2 * np.pi) - 1/2 * np.sum(np.log(F) + F**(-1) * v**2)
@@ -126,10 +131,11 @@ a_d, P_d, v_d, F_d, K_d, n_d = KF_LL(x_b, ml_params_c, 0)
 plt.plot(x_b, 'o',  markersize = 3, color = 'grey', label = r'$x_t$')
 plt.plot(a_d, color='red', label = r'$h_t$')
 plt.legend()
+plt.savefig('tsm_ass2_d1')
 plt.show()
 
 #KALMAN SMOOTHER FUNCTION
-def KS_LL(y, v, P, F, a, K, phi, plot):
+def KS_LL(y, v, P, F, a, K, phi, saveFig=''):
     r =  np.zeros(len(y))
     r[-1] = 0
 
@@ -149,25 +155,27 @@ def KS_LL(y, v, P, F, a, K, phi, plot):
         V[t] = P[t] - P[t]**2*N[t]
 
 
-    if plot:
+    if len(saveFig)>0:
         plt.plot(a, color='red', label = 'Kalman filter')
         plt.plot(a_hat, color = 'blue', label = 'Kalman smoother')
         plt.legend()
+        plt.savefig(saveFig)
         plt.show()
 
     return (r, N, a_hat, V)
 
 #Running KS with QML obtained parameters
-r_d, N_d, a_hat_d, V_d = KS_LL(x_b, v_d, P_d, F_d, a_d, K_d, ml_params_c[0], False)
+r_d, N_d, a_hat_d, V_d = KS_LL(x_b, v_d, P_d, F_d, a_d, K_d, ml_params_c[0])
 
 
 #Plotting filtered and smoothed h_tilde
 kf_h_tilde_d = a_d-psi_hat_c
 ks_h_tilde_d = a_hat_d-psi_hat_c
 
-plt.plot(kf_h_tilde_d, color='red', label = r'$E[\tilde{h}_t|Y_t]$')
-plt.plot(ks_h_tilde_d, color = 'blue', label = r'$E[\tilde{h}_t|Y_n]$')
+plt.plot(kf_h_tilde_d, color='red', label = r'$E[\tilde{h}_t|x_1,...,x_t]$')
+plt.plot(ks_h_tilde_d, color = 'blue', label = r'$E[\tilde{h}_t|x_1,...,x_n]$')
 plt.legend()
+plt.savefig('tsm_ass2_d2')
 plt.show()
 
 
@@ -181,6 +189,13 @@ mu_e = np.mean(y_e)
 x_e = np.log((y_e-mu_e)**2)
 
 plt.plot(y_e, color = 'grey')
+plt.ylabel('log returns')
+plt.savefig('tsm_ass2_e1')
+plt.show()
+
+plt.plot(x_e, color = 'grey')
+plt.ylabel(r'$x_t$')
+plt.savefig('tsm_ass2_e2')
 plt.show()
 
 #QML estimation
@@ -188,10 +203,11 @@ phi_ini_e = 0.99
 ml_params_e, psi_hat_e = getQMLparams(x_e, phi_ini_e)
 
 #Running KF using QML params
-a_e, P_e, v_e, F_e, K_e, n_e = KF_LL(x_e, ml_params_e, 0, plot=True)
+a_e, P_e, v_e, F_e, K_e, n_e = KF_LL(x_e, ml_params_e, 0, saveFig = 'tsm_ass2_e3')
 
 #Running KS using QML params
-r_e, N_e, a_hat_e, V_e = KS_LL(x_e, v_e, P_e, F_e, a_e, K_e, ml_params_e[0], plot=True)
+r_e, N_e, a_hat_e, V_e = KS_LL(x_e, v_e, P_e, F_e, a_e, K_e, ml_params_e[0],
+                               saveFig = 'tsm_ass2_e4')
 
 
 #Obtaining log realized volatility values and subtracting 1.27
@@ -218,9 +234,10 @@ phi_ini_rv = 0.99
 ml_params_rv, psi_hat_rv = getQMLparams(x_demeaned, phi_ini_rv)
 
 #Obtaining and plotting KF and KS
-a_rv, P_rv, v_rv, F_rv, K_rv, n_rv = KF_LL(x_demeaned, ml_params_rv, 0, plot=True)
+a_rv, P_rv, v_rv, F_rv, K_rv, n_rv = KF_LL(x_demeaned, ml_params_rv, 0, 
+                                           saveFig = 'tsm_ass2_e5')
 r_rv, N_rv, a_hat_rv, V_rv = KS_LL(x_demeaned, v_rv, P_rv, F_rv, a_rv, 
-                                   K_rv, ml_params_rv[0], plot=True)
+                                   K_rv, ml_params_rv[0], saveFig = 'tsm_ass2_e6')
 
 
 # F #################################################################################################################
@@ -253,11 +270,12 @@ sig2_eta = ml_params_c[1]
 omega = ml_params_c[2]
 psi = omega/(1-phi)
 M = 10000
-h_c = bootstrap_filter_method(y_b, M, sig2_eta, phi, psi)#, a_ini, P_ini)
+h_c = bootstrap_filter_method(y_a, M, sig2_eta, phi, psi)#, a_ini, P_ini)
 
-plt.plot(h_c, color = 'red', label = r"QML $E[\tilde{h}_t|Y_t]$")
-plt.plot(a_d-psi, color = 'blue', label = r'Bootstrapped $E[\tilde{h}_t|Y_t]$')
+plt.plot(h_c, color = 'red', label = r"QML $E[\tilde{h}_t|x_1,...,x_t]$")
+plt.plot(a_d-psi, color = 'blue', label = r'Bootstrapped $E[\tilde{h}_t|x_1,...,x_t]$')
 plt.legend()
+plt.savefig('tsm_ass2_f1')
 plt.show()
 
 phi = ml_params_e[0]
@@ -267,7 +285,8 @@ psi = omega/(1-phi)
 M = 10000
 h_e = bootstrap_filter_method(y_e, M, sig2_eta, phi, psi)#, a_ini, P_ini)
 
-plt.plot(h_e, color = 'red', label = r"QML $E[\tilde{h}_t|Y_t]$")
-plt.plot(a_e-psi, color = 'blue', label = r'Bootstrapped $E[\tilde{h}_t|Y_t]$')
+plt.plot(h_e, color = 'red', label = r"QML $E[\tilde{h}_t|x_1,...,x_t]$")
+plt.plot(a_e-psi, color = 'blue', label = r'Bootstrapped $E[\tilde{h}_t|x_1,...,x_t]$')
 plt.legend()
+plt.savefig('tsm_ass2_f2')
 plt.show()
