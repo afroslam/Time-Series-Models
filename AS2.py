@@ -88,12 +88,12 @@ def KF_LL(y, params, ml_flag, saveFig=''):
     K = K[1:]
     n = len(v)
 
-    if len(saveFig)>0:
-        plt.plot(y, 'o', color = 'grey', label = r'$x_t$')
-        plt.plot(a, color='red', label = 'Kalman filter')
-        plt.legend()
-        plt.savefig(saveFig)
-        plt.show()
+    # if len(saveFig)>0:
+    #     plt.plot(y-d, 'o', markersize = 3, color = 'grey', label = r'Transformed $x_t$')
+    #     plt.plot(a, color='red', label = 'Kalman filter')
+    #     plt.legend()
+    #     plt.savefig(saveFig)
+    #     plt.show()
 
     LogL = - (n/2) * np.log(2 * np.pi) - 1/2 * np.sum(np.log(F) + F**(-1) * v**2)
 
@@ -107,7 +107,6 @@ def getQMLparams(x, phi_ini, bounds = [(0,1), (0, None), (None, None)]):
     #Initialize omega and sig2_eta using phi_ini
     omega_ini =  (1 - phi_ini) * (np.mean(x) + 1.27) 
     sig2_eta_ini = (1 - phi_ini**2) * (np.var(x) - (np.pi**2)/2)
-
     #QML Optimization
     opt = minimize(lambda params: -KF_LL(x, params, 1), 
                     method='Nelder-Mead', 
@@ -132,14 +131,10 @@ ml_params_c, psi_hat_c = getQMLparams(x_b, phi_ini_c)
 # D #################################################################################################################
 #Running KF with the QML obtained parameters and plotting h_t
 a_d, P_d, v_d, F_d, K_d, n_d = KF_LL(x_b, ml_params_c, 0)
-plt.plot(x_b, 'o',  markersize = 3, color = 'grey', label = r'$x_t$')
-plt.plot(a_d, color='red', label = r'$h_t$')
-plt.legend()
-plt.savefig('tsm_ass2_d1')
-plt.show()
 
 #KALMAN SMOOTHER FUNCTION
 def KS_LL(y, v, P, F, a, K, phi, saveFig=''):
+    d = -1.27
     r =  np.zeros(len(y))
     r[-1] = 0
 
@@ -160,7 +155,8 @@ def KS_LL(y, v, P, F, a, K, phi, saveFig=''):
 
 
     if len(saveFig)>0:
-        plt.plot(a, color='red', label = 'Kalman filter')
+        plt.plot(y-d, 'o', markersize = 3, color = 'grey', label = r'Transformed $x_t$')
+        #plt.plot(a, color='red', label = 'Kalman filter')
         plt.plot(a_hat, color = 'blue', label = 'Kalman smoother')
         plt.legend()
         plt.savefig(saveFig)
@@ -169,7 +165,7 @@ def KS_LL(y, v, P, F, a, K, phi, saveFig=''):
     return (r, N, a_hat, V)
 
 #Running KS with QML obtained parameters
-r_d, N_d, a_hat_d, V_d = KS_LL(x_b, v_d, P_d, F_d, a_d, K_d, ml_params_c[0])
+r_d, N_d, a_hat_d, V_d = KS_LL(x_b, v_d, P_d, F_d, a_d, K_d, ml_params_c[0], saveFig= 'tsm_ass2_d1')
 
 
 #Plotting filtered and smoothed h_tilde
@@ -212,11 +208,21 @@ phi_ini_e = 0.99
 ml_params_e, psi_hat_e = getQMLparams(x_e, phi_ini_e)
 
 #Running KF using QML params
-a_e, P_e, v_e, F_e, K_e, n_e = KF_LL(x_e, ml_params_e, 0, saveFig = 'tsm_ass2_e3')
+a_e, P_e, v_e, F_e, K_e, n_e = KF_LL(x_e, ml_params_e, 0)
 
 #Running KS using QML params
-r_e, N_e, a_hat_e, V_e = KS_LL(x_e, v_e, P_e, F_e, a_e, K_e, ml_params_e[0],
-                               saveFig = 'tsm_ass2_e4')
+r_e, N_e, a_hat_e, V_e = KS_LL(x_e, v_e, P_e, F_e, a_e, K_e, ml_params_e[0], saveFig = 'tsm_ass2_e3')
+
+
+#Plotting filtered and smoothed h_tilde
+kf_h_tilde_e = a_e-psi_hat_e
+ks_h_tilde_e = a_hat_e-psi_hat_e
+
+plt.plot(kf_h_tilde_e, color='red', label = r'$E[\tilde{h}_t|x_1,...,x_t]$')
+plt.plot(ks_h_tilde_e, color = 'blue', label = r'$E[\tilde{h}_t|x_1,...,x_n]$')
+plt.legend()
+plt.savefig('tsm_ass2_e4')
+plt.show()
 
 
 #Obtaining log realized volatility values and subtracting 1.27
@@ -237,17 +243,24 @@ mu = np.mean(y)
 x = np.log((y-mu)**2)
 x_demeaned = x - beta_hat * (x_rv + 1.27)
 
-
 #QML estimation
-phi_ini_rv = 0.99
+phi_ini_rv = 0.995
 ml_params_rv, psi_hat_rv = getQMLparams(x_demeaned, phi_ini_rv)
 
 #Obtaining and plotting KF and KS
-a_rv, P_rv, v_rv, F_rv, K_rv, n_rv = KF_LL(x_demeaned, ml_params_rv, 0, 
-                                           saveFig = 'tsm_ass2_e5')
+a_rv, P_rv, v_rv, F_rv, K_rv, n_rv = KF_LL(x_demeaned, ml_params_rv, 0)
 r_rv, N_rv, a_hat_rv, V_rv = KS_LL(x_demeaned, v_rv, P_rv, F_rv, a_rv, 
-                                   K_rv, ml_params_rv[0], saveFig = 'tsm_ass2_e6')
+                                   K_rv, ml_params_rv[0], saveFig = 'tsm_ass2_e5')
 
+#Plotting filtered and smoothed h_tilde
+kf_h_tilde_rv = a_rv-psi_hat_rv
+ks_h_tilde_rv = a_hat_rv-psi_hat_rv
+
+plt.plot(kf_h_tilde_rv, color='red', label = r'$E[\tilde{h}_t|x_1,...,x_t]$')
+plt.plot(ks_h_tilde_rv, color = 'blue', label = r'$E[\tilde{h}_t|x_1,...,x_n]$')
+plt.legend()
+plt.savefig('tsm_ass2_e6')
+plt.show()
 
 # F #################################################################################################################
 def bootstrap_filter_method(y, M, sig2_eta, phi, psi):#, a_ini, P_ini): 
