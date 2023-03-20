@@ -120,7 +120,6 @@ def getQMLparams(x, phi_ini, bounds = [(0,1), (0, None), (None, None)]):
 phi_ini_c = 0.9731
 ml_params_c, psi_hat_c = getQMLparams(x_b, phi_ini_c)
 
-
 # D #################################################################################################################
 #Running KF with the QML obtained parameters and plotting h_t
 a_d, P_d, v_d, F_d, K_d, n_d = KF_LL(x_b, ml_params_c, 0)
@@ -286,10 +285,10 @@ sig2_eta = ml_params_c[1]
 omega = ml_params_c[2]
 psi = omega/(1-phi)
 M = 10000
-h_c = bootstrap_filter_method(y_a, M, sig2_eta, phi, psi)#, a_ini, P_ini)
+h_c = bootstrap_filter_method(y_a-np.mean(y_a), M, sig2_eta, phi, psi)#, a_ini, P_ini)
 
-plt.plot(h_c, color = 'blue', label = r"QML $E[\tilde{h}_t|x_1,...,x_t]$")
-plt.plot(a_d-psi, color = 'red', label = r'Bootstrapped $E[\tilde{h}_t|x_1,...,x_t]$')
+plt.plot(h_c, color = 'red', label = r"QML $E[\tilde{h}_t|x_1,...,x_t]$")
+plt.plot(a_d-psi, color = 'blue', label = r'Bootstrapped $E[\tilde{h}_t|y_1,...,y_t]$')
 plt.legend()
 plt.savefig('tsm_ass2_f1')
 plt.show()
@@ -299,10 +298,10 @@ sig2_eta = ml_params_e[1]
 omega = ml_params_e[2]
 psi = omega/(1-phi)
 M = 10000
-h_e = bootstrap_filter_method(y_e, M, sig2_eta, phi, psi)#, a_ini, P_ini)
+h_e = bootstrap_filter_method(y_e-np.mean(y_e), M, sig2_eta, phi, psi)#, a_ini, P_ini)
 
-plt.plot(h_e, color = 'blue', label = r"QML $E[\tilde{h}_t|x_1,...,x_t]$")
-plt.plot(a_e-psi, color = 'red', label = r'Bootstrapped $E[\tilde{h}_t|x_1,...,x_t]$')
+plt.plot(h_e, color = 'red', label = r"QML $E[\tilde{h}_t|x_1,...,x_t]$")
+plt.plot(a_e-psi, color = 'blue', label = r'Bootstrapped $E[\tilde{h}_t|y_1,...,y_t]$')
 plt.legend()
 plt.savefig('tsm_ass2_f2')
 plt.show()
